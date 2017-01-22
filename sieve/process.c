@@ -66,8 +66,8 @@ static void do_sieve(size_t job_id, size_t slice_start, size_t slice_size, int s
     } while(new_min != (size_t)-1);
 
     // Create a file and print all of the primes to it
-    //PTIME
-    //(
+    PTIME
+    (
         char buf[32];
         snprintf(buf, 32, "proc%lu", job_id);
         FILE* out = fopen(buf, "w");
@@ -79,7 +79,7 @@ static void do_sieve(size_t job_id, size_t slice_start, size_t slice_size, int s
             }
         }
         fclose(out);
-    //)
+    )
 
     ms_working += get_delay(start, end);
     snprintf(buf, 32, "proc%lu.time", job_id);
@@ -207,4 +207,6 @@ void concurrent_sieve_process(size_t limit, size_t num_jobs) {
 
     mq_close(msg_queue);
     mq_unlink(COMP_8005_ASSN1_MQ);
+
+    free(semaphores);
 }
