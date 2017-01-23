@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdatomic.h>
 
 #include <unistd.h>
 #include <time.h>
@@ -10,7 +11,6 @@
 #include <semaphore.h>
 
 #include <signal.h>
-#include <ruby/missing.h>
 
 #include "common.h"
 #include "../timing.h"
@@ -27,12 +27,18 @@ typedef struct {
     size_t prime;
 } job_result_msg;
 
+static atomic_int children_exited = 0;
+void sigchld_handler(int signum) {
+    if(signum == SIGCHLD) {
+        atomic_fetch_add(&children_exited, 1);
+    }
+}
+
 static void do_sieve(size_t job_id, size_t slice_start, size_t slice_size, int shared_mem, mqd_t msg_queue) {
     char* composites = calloc(slice_size, sizeof(char));
 
     // Timing info
     struct timespec start, end;
-    double ms_waiting = 0.0;
     double ms_ipc = 0.0;
     double ms_working = 0.0;
 
@@ -47,7 +53,7 @@ static void do_sieve(size_t job_id, size_t slice_start, size_t slice_size, int s
     size_t new_min = 0;
     do {
         PTIME(sem_wait(sem))
-        ms_waiting += get_delay(start, end);
+        ms_ipc += get_delay(start, end);
 
         PTIME(new_min = strike_multiples(composites, slice_size, slice_start, *unmarked))
         ms_working += get_delay(start, end);
@@ -68,11 +74,9 @@ static void do_sieve(size_t job_id, size_t slice_start, size_t slice_size, int s
     // Create a file and print all of the primes to it
     PTIME
     (
-        char buf[32];
-        snprintf(buf, 32, "proc%lu", job_id);
-        FILE* out = fopen(buf, "w");
-
-        printf("Writing results to file %s\n", buf);
+        char primes_filename[32];
+        snprintf(primes_filename, 32, "proc%lu", job_id);
+        FILE* out = fopen(primes_filename, "w");
         for (size_t i = 0; i < slice_size; ++i) {
             if (!composites[i]) {
                 fprintf(out, "%lu\n", i + slice_start);
@@ -80,14 +84,16 @@ static void do_sieve(size_t job_id, size_t slice_start, size_t slice_size, int s
         }
         fclose(out);
     )
-
     ms_working += get_delay(start, end);
-    snprintf(buf, 32, "proc%lu.time", job_id);
-    FILE* timing = fopen(buf, "w");
-    fprintf(timing, "Milliseconds waiting for semaphore: %.4lf\n", ms_waiting);
-    fprintf(timing, "Milliseconds working: %.4lf\n", ms_working);
-    fprintf(timing, "Milliseconds sending messages: %.4lf\n", ms_ipc);
+
+    char timing_filename[32];
+    snprintf(timing_filename, 32, "proc%lu.time", job_id);
+    FILE* timing = fopen(timing_filename, "a");
+    fprintf(timing, "time doing IPC (ms): %.4lf\n", ms_ipc);
+    fprintf(timing, "time working (ms): %.4lf\n", ms_working);
     fclose(timing);
+
+    printf("Job %lu finished. Primes written to %s. Timing info written to %s.\n", job_id, primes_filename, timing_filename);
 
     sem_close(sem);
     munmap(unmarked, sizeof(size_t));
@@ -97,8 +103,8 @@ static void do_sieve(size_t job_id, size_t slice_start, size_t slice_size, int s
 
 void concurrent_sieve_process(size_t limit, size_t num_jobs) {
 
-    // Ignore SIGCHLD to automatically clean up child processes
-    signal(SIGCHLD, SIG_IGN);
+    // Keep track of how many children have actually exited
+    signal(SIGCHLD, sigchld_handler);
 
     // Create a message queue to send back the minimum prime from each process
     struct mq_attr attr = {0};
@@ -200,6 +206,9 @@ void concurrent_sieve_process(size_t limit, size_t num_jobs) {
 
         remaining_jobs -= finished_jobs;
     }
+
+    // Wait for all children to finish what they're doing before ending the process
+    while(atomic_load(&children_exited) != num_jobs);
 
     // Clean up
     munmap(next_prime, 0);

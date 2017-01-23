@@ -9,8 +9,10 @@
     __VA_ARGS__; \
     END_TIMER(clock, end_timespec)
 
-// Uses process cpu time and the start and end variables, so not useful outside of this really...
+// Wrappers around time using process and thread cpu time id, respectively. Both assume that start and end struct timespec
+// are declared.
 #define PTIME(...) TIME(CLOCK_PROCESS_CPUTIME_ID, start, end, __VA_ARGS__)
+#define TTIME(...) TIME(CLOCK_THREAD_CPUTIME_ID, start, end, __VA_ARGS__)
 
 /**
  * Calculates the delay between start and end in seconds.
