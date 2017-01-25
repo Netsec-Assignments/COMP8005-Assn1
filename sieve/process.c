@@ -109,7 +109,7 @@ void concurrent_sieve_process(size_t limit, size_t num_jobs) {
     // Create a message queue to send back the minimum prime from each process
     struct mq_attr attr = {0};
     attr.mq_flags = 0;
-    attr.mq_maxmsg = num_jobs + 5;
+    attr.mq_maxmsg = 10;
     attr.mq_msgsize = sizeof(job_result_msg);
     attr.mq_curmsgs = 0;
 
