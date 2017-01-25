@@ -52,17 +52,17 @@ static void do_sieve(size_t job_id, size_t slice_start, size_t slice_size, int s
 
     size_t new_min = 0;
     do {
-        PTIME(sem_wait(sem))
+        CTIME(sem_wait(sem))
         ms_ipc += get_delay(start, end);
 
-        PTIME(new_min = strike_multiples(composites, slice_size, slice_start, *unmarked))
+        CTIME(new_min = strike_multiples(composites, slice_size, slice_start, *unmarked))
         ms_working += get_delay(start, end);
 
         job_result_msg msg;
         msg.job_id = job_id;
         msg.prime = new_min;
 
-        PTIME(int result = mq_send(msg_queue, (char*)&msg, sizeof(msg), 0))
+        CTIME(int result = mq_send(msg_queue, (char*)&msg, sizeof(msg), 0))
         ms_ipc += get_delay(start, end);
 
         if (result == -1) {
@@ -72,7 +72,7 @@ static void do_sieve(size_t job_id, size_t slice_start, size_t slice_size, int s
     } while(new_min != (size_t)-1);
 
     // Create a file and print all of the primes to it
-    PTIME
+    CTIME
     (
         char primes_filename[32];
         snprintf(primes_filename, 32, "proc%lu", job_id);

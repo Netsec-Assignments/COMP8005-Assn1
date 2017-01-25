@@ -9,10 +9,8 @@
     __VA_ARGS__; \
     END_TIMER(clock, end_timespec)
 
-// Wrappers around time using process and thread cpu time id, respectively. Both assume that start and end struct timespec
-// are declared.
-#define PTIME(...) TIME(CLOCK_PROCESS_CPUTIME_ID, start, end, __VA_ARGS__)
-#define TTIME(...) TIME(CLOCK_THREAD_CPUTIME_ID, start, end, __VA_ARGS__)
+// "Convenient time", which assumes that start and end are struct timespecs.
+#define CTIME(...) TIME(CLOCK_MONOTONIC_RAW, start, end, __VA_ARGS__)
 
 /**
  * Calculates the delay between start and end in seconds.

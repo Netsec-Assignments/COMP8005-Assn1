@@ -42,7 +42,7 @@ static void* do_sieve(void* job_params) {
     while (1) {
         size_t new_min;
 
-        TTIME
+        CTIME
         (
             atomic_fetch_add(&params->sync->waiting_jobs, 1);
 
@@ -61,10 +61,10 @@ static void* do_sieve(void* job_params) {
         prev_min = new_min;
 
 
-        TTIME(job_min = strike_multiples(params->composites, params->slice_size, params->slice_start, new_min))
+        CTIME(job_min = strike_multiples(params->composites, params->slice_size, params->slice_start, new_min))
         ms_working += get_delay(start, end);
 
-        TTIME
+        CTIME
         (
             if (job_min != (size_t)-1) {
                 // Keep trying to write the job's minimum value to the slave minimum variable until either
@@ -85,7 +85,7 @@ static void* do_sieve(void* job_params) {
         ms_ipc += get_delay(start, end);
     }
 
-    TTIME
+    CTIME
     (
         char primes_filename[32];
         snprintf(primes_filename, 32, "thread%lu", params->job_id);
